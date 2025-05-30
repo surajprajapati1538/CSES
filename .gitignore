@@ -1,0 +1,4 @@
+
+
+# ignore .class file and include only the .java file
+*.class

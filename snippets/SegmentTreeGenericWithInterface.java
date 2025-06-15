@@ -2,53 +2,103 @@
 
 
 
+interface Node<N> {
+    // merge two nodes (left children and right children)
+    public void merge(N left, N right);
+
+    // create a node with customized value
+    public N create(int value);
+
+    // create a node (identity Node)
+    public N createIdentityNode();
+
+    // return value
+    public int getValue();
+
+}
+
+interface Update<U, N> {
+
+    // combine the updates
+    public void combine(U otherUpdate, int tl, int tr);
+    // apply the updates to a node(child nodes during propagation)
+    public void apply(N node, int tl, int tr);
+    // create an update with customized value
+    public U create(int value);
+    // create an update with customized value
+    public U createIdentityUpdate();
+}
 
 
 
 
-
-class Node {
+class SumNode implements Node<SumNode>{
     // initials value -> identityValue
     // we can use more variables depending on the question requirements
     int v = 0;
 
     // Identity Node
-    public Node() {}
+    public SumNode() {}
 
     // custom initialization
-    public Node(int value) {
+    public SumNode(int value) {
         this.v = value;
     }
 
     // merge left and right childrens
     // merge logic can change 
-    public void merge(Node left, Node right) {
+    public void merge(SumNode left, SumNode right) {
         this.v = left.v + right.v;  // adition operation
+    }
+
+    @Override
+    public SumNode create(int value) {
+        return new SumNode(value);
+    }
+
+    @Override
+    public SumNode createIdentityNode() {
+        return new SumNode();
+    }
+
+    @Override
+    public int getValue() {
+        return this.v;
     }
 }
 
-class Update {
+class SumUpdate implements Update<SumUpdate, SumNode>{
     // initial value -> identity value
     int v = 0;
 
     // IdentityTransformation / Identity for UnPropUpd
-    public Update() {}
+    public SumUpdate() {}
 
     // custom constructor for initialization
-    public Update(int val) {
+    public SumUpdate(int val) {
         this.v = val;
     }
 
     // combine the updates
     // combine logic can change
-    public void combine(Update otherUpdate, int tl, int tr) {
+    public void combine(SumUpdate otherUpdate, int tl, int tr) {
         this.v += otherUpdate.v;  // addition operation 
     }
 
     // apply the updates to a node(child nodes during propagation)
     // apply logic can change
-    public void apply(Node node, int tl, int tr) {
+    public void apply(SumNode node, int tl, int tr) {
         node.v += (tr - tl + 1) * this.v;  // addition operation
+    }
+
+    @Override
+    public SumUpdate create(int value) {
+        return new SumUpdate(value);
+    }
+
+    @Override
+    public SumUpdate createIdentityUpdate() {
+        return new SumUpdate();
     }
 
 }
@@ -57,32 +107,33 @@ class Update {
 
 
 
-class SegmentTreeGenericImpl {
+class SegmentTreeGenericImpl<N extends Node<N>, U extends Update<U, N> > {
     private int n;
     private int[] a; // actual array (0-based indexing)
-    private Node[] t;  // segment tree (1-based indexing)
-    private Update[] unPropUpd; // unpropagated values for a node
+    private N[] t;  // segment tree (1-based indexing)
+    private U[] unPropUpd; // unpropagated values for a node
     private boolean[] isLazy;  // tells if a node is having unpropagated values or not
-    private final Node identityNode;  // identity element
-    private final Update identityUpdate; // identity transformation
+    private final N identityNode;  // identity element
+    private final U identityUpdate; // identity transformation
 
 
    
 
-    public SegmentTreeGenericImpl(int n, int[] a) {
+    @SuppressWarnings("unchecked")
+    public SegmentTreeGenericImpl(int n, int[] a, N identityNode, U identityUpdate) {
         this.n = n;
         this.a = a;
-        this.t = new Node[4*n];
-        this.unPropUpd = new Update[4*n];
+        this.t = (N[]) new Node[4*n];
+        this.unPropUpd = (U[]) new Update[4*n];
         this.isLazy = new boolean[4*n];
-        this.identityNode = new Node();
-        this.identityUpdate = new Update();
+        this.identityNode =  identityNode;
+        this.identityUpdate = identityUpdate;
 
 
         for(int i=0; i<4*n; i++) {
-            unPropUpd[i] = new Update();
+            unPropUpd[i] = identityUpdate.createIdentityUpdate();
             isLazy[i] = false;
-            t[i] = new Node();
+            t[i] = identityNode.createIdentityNode();
         }
     }
 
@@ -94,7 +145,7 @@ class SegmentTreeGenericImpl {
     private void buildSegmentTree(int v, int tl, int tr) {
         // reached the leaf node
         if(tl == tr) {
-            t[v] = new Node(a[tl]);
+            t[v] = identityNode.create(a[tl]);
             return;
         }
 
@@ -104,14 +155,14 @@ class SegmentTreeGenericImpl {
         buildSegmentTree(2*v+1, tm+1, tr);
 
         // merge left and right nodes to current node
-        t[v] = new Node();
+        t[v] = identityNode.createIdentityNode();
         t[v].merge(t[2*v], t[2*v+1]);
     }
 
 
     // range query operation on segment tree
     // call -> rangeQueryOnST(1, 0, n-1, ql, qr)
-    private Node rangeQueryOnST(int v, int tl, int tr, int ql, int qr) {
+    private N rangeQueryOnST(int v, int tl, int tr, int ql, int qr) {
         // if outside the query range -> no overlapping
         if(tr < ql || tl > qr) {
             return identityNode;
@@ -128,11 +179,11 @@ class SegmentTreeGenericImpl {
         pushDown(v, tl, tr);
 
         int tm = (tl + tr) / 2;
-        Node leftNode = rangeQueryOnST(2*v, tl, tm, ql, qr);
-        Node rightNode = rangeQueryOnST(2*v+1, tm+1, tr, ql, qr);
+        N leftNode = rangeQueryOnST(2*v, tl, tm, ql, qr);
+        N rightNode = rangeQueryOnST(2*v+1, tm+1, tr, ql, qr);
 
         // merge left and right nodes and return answer
-        Node ans = new Node();
+        N ans = identityNode.createIdentityNode();
         ans.merge(leftNode, rightNode);
         return ans;
     }
@@ -140,7 +191,7 @@ class SegmentTreeGenericImpl {
 
     // range update on Segment Tree
     // call -> rangeUpdateOnST(1, 0, n-1, ql, qr)
-    private void rangeUpdateOnST(int v, int tl, int tr, int ql, int qr, Update upd) {
+    private void rangeUpdateOnST(int v, int tl, int tr, int ql, int qr, U upd) {
         // if outside the query range -> no overlapping
         if(tl > qr || tr < ql)
             return;
@@ -183,7 +234,7 @@ class SegmentTreeGenericImpl {
 
     // apply the updates to a node
     // call -> apply(v, tl, tr, upd)
-    private void apply(int v, int tl, int tr, Update upd) {
+    private void apply(int v, int tl, int tr, U upd) {
         // leaf nodes can't be lazy 
         // if this is not leaf node
         if(tl != tr) {
@@ -211,22 +262,22 @@ class SegmentTreeGenericImpl {
 
     // query on ST
     public int query(int ql, int qr) {
-        Node ans = rangeQueryOnST(1, 0, n-1, ql, qr);
-        return ans.v;
+        N ans = rangeQueryOnST(1, 0, n-1, ql, qr);
+        return ans.getValue();
     }
 
     // range update of ST
     public void rangeUpdate(int l, int r, int val) {
-        rangeUpdateOnST(1, 0, n-1, l, r, new Update(val));
+        rangeUpdateOnST(1, 0, n-1, l, r, identityUpdate.create(val));
     }       
 }
 
 
-public class SegmentTreeGeneric {
+public class SegmentTreeGenericWithInterface {
     public static void main(String[] args) {
         int[] a = {1, 3, 5, 7, 9, 11}; // Initial array of length 6
 
-        SegmentTreeGenericImpl st = new SegmentTreeGenericImpl(a.length, a);
+        SegmentTreeGenericImpl<SumNode, SumUpdate> st = new SegmentTreeGenericImpl<>(a.length, a, new SumNode(), new SumUpdate());
         st.build();
 
         // Initial queries

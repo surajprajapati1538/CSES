@@ -2,7 +2,6 @@ import java.io.*;
 
 public class StaticRangeQuery {
     public static void main(String[] args) throws IOException {
-        System.out.println("Hello World!");
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         PrintWriter out = new PrintWriter(System.out);
 

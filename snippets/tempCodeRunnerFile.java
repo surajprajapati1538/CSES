@@ -211,6 +211,7 @@ class SegmentTreeGenericImpl {
 
 public class SegmentTreeGeneric {
     public static void main(String[] args) {
+        System.out.println("Hello World");
         int[] a = {1, 3, 5, 7, 9, 11}; // Initial array of length 6
 
         SegmentTreeGenericImpl st = new SegmentTreeGenericImpl(a.length, a);
